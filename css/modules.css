@@ -784,3 +784,152 @@
   color: var(--color-label-tertiary);
   padding: var(--spacing-lg) 0;
 }
+
+/* ============================================
+   备份状态行 & 顶部提醒条（v1.6）
+   ============================================ */
+
+/* 设置页的备份状态行 */
+.backup-status-row {
+  background: var(--color-tint-lighter);
+}
+.backup-status-row.backup-status-warn,
+.backup-status-row.backup-status-none {
+  background: rgba(214, 140, 58, 0.12);
+}
+.backup-status-row.backup-status-warn .list-item-icon,
+.backup-status-row.backup-status-none .list-item-icon {
+  background: rgba(214, 140, 58, 0.18) !important;
+  color: var(--color-warning) !important;
+}
+.backup-status-note {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 500;
+  background: var(--color-warning);
+  color: white;
+  vertical-align: middle;
+}
+
+/* 顶部备份提醒条 */
+.backup-banner {
+  position: fixed;
+  top: calc(var(--safe-area-top) + var(--nav-bar-height) + 8px);
+  left: calc(var(--safe-area-left) + var(--spacing-md));
+  right: calc(var(--safe-area-right) + var(--spacing-md));
+  background: var(--color-bg-elevated);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-md);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  box-shadow: var(--shadow-md);
+  z-index: 100;
+  transform: translateY(-20px);
+  opacity: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
+}
+.backup-banner.active {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.backup-banner-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.backup-banner-text {
+  flex: 1;
+  font-size: 13px;
+  color: var(--color-label);
+  line-height: 1.3;
+  min-width: 0;
+}
+
+.backup-banner-btn {
+  height: 30px;
+  padding: 0 12px;
+  background: var(--color-tint);
+  color: white;
+  border-radius: 15px;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.backup-banner-btn:active {
+  opacity: 0.8;
+}
+
+.backup-banner-close {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-label-secondary);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.backup-banner-close:active {
+  background: var(--color-bg-tinted);
+}
+
+/* ============================================
+   备份帮助弹窗（v1.7）
+   ============================================ */
+.backup-help {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+.backup-help-section {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.backup-help-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--color-label);
+}
+.backup-help-steps {
+  margin: 0;
+  padding-left: 20px;
+  color: var(--color-label-secondary);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.backup-help-steps li {
+  padding-left: 4px;
+}
+.backup-help-steps b {
+  color: var(--color-label);
+  font-weight: 600;
+}
+.backup-help-tip {
+  background: var(--color-tint-lighter);
+  border-radius: var(--radius-sm);
+  padding: 12px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--color-label-secondary);
+}
+.backup-help-tip b {
+  color: var(--color-label);
+}
+.backup-help-tip code {
+  background: var(--color-bg-tinted);
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-family: 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 11px;
+}

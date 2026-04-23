@@ -1,20 +1,16 @@
 /**
  * 设置页（模块九）
  *
- * v1.6 更新：
- *   - 导出成功时记录 lastBackupAt
- *   - 备份状态行：显示"最近备份：X 天前"
- *   - 超过 7 天未备份时，顶部弹提醒条
+ * v1.7 更新：
+ *   - 导出使用 navigator.share()，iOS 上可直接选"存到 iCloud 云盘"
+ *   - 首次成功备份后弹出操作指引
+ *   - 加"如何备份到 iCloud"帮助入口
  */
 (function () {
   'use strict';
 
-  // 每次升级改这里 + service-worker.js 里的 CACHE_VERSION
-  const APP_VERSION = '1.6.0';
-
-  // 超过多少天没备份就提醒
+  const APP_VERSION = '1.7.0';
   const BACKUP_REMIND_DAYS = 7;
-
   const { formatMoney } = window.UIUtils;
 
   let pageEl = null;
@@ -41,19 +37,15 @@
       }
     });
 
-    // 启动时检查备份提醒（延迟 2 秒，避免打断首次打开体验）
     setTimeout(() => maybeShowBackupBanner(), 2000);
   }
 
-  // ============ 备份时间工具 ============
   async function getLastBackupAt() {
     return await window.Repo.Meta.get('lastBackupAt');
   }
-
   async function setLastBackupAt(ts) {
     await window.Repo.Meta.set('lastBackupAt', ts);
   }
-
   function formatBackupAgo(ts) {
     if (!ts) return null;
     const diffMs = Date.now() - ts;
@@ -68,47 +60,33 @@
     return `${months} 个月前`;
   }
 
-  // ============ 备份提醒条（顶部） ============
   async function maybeShowBackupBanner() {
     const last = await getLastBackupAt();
     const txs = await window.Repo.Transactions.getAll();
-
-    // 没有任何账单，不提醒
     if (txs.length === 0) return;
-
-    // 有备份且还在 7 天内，不提醒
     if (last && Date.now() - last < BACKUP_REMIND_DAYS * 24 * 3600 * 1000) return;
-
-    // 本次会话已关掉过提醒，不再弹
     if (sessionStorage.getItem('backupBannerDismissed') === '1') return;
-
     showBackupBanner(last);
   }
 
   function showBackupBanner(last) {
     if (document.getElementById('backupBanner')) return;
-
     const banner = document.createElement('div');
     banner.id = 'backupBanner';
     banner.className = 'backup-banner';
-
-    const msg = last
-      ? `已有 ${formatBackupAgo(last)} 未备份`
-      : '还未备份过数据';
-
+    const msg = last ? `已有 ${formatBackupAgo(last)} 未备份` : '还未备份过数据';
     banner.innerHTML = `
       <div class="backup-banner-icon">⚠️</div>
       <div class="backup-banner-text">${msg}</div>
       <button class="backup-banner-btn" data-action="backup-now">立即备份</button>
       <button class="backup-banner-close" data-action="dismiss" aria-label="关闭">×</button>
     `;
-
     document.body.appendChild(banner);
     requestAnimationFrame(() => banner.classList.add('active'));
 
     banner.querySelector('[data-action="backup-now"]').addEventListener('click', async () => {
-      await exportData();
       hideBackupBanner();
+      await exportData();
     });
     banner.querySelector('[data-action="dismiss"]').addEventListener('click', () => {
       sessionStorage.setItem('backupBannerDismissed', '1');
@@ -123,7 +101,6 @@
     setTimeout(() => banner.remove(), 250);
   }
 
-  // ============ 主渲染 ============
   async function render() {
     if (!pageEl) return;
 
@@ -135,9 +112,7 @@
     ]);
     const accountCount = accounts.reduce((s, a) => s + 1 + a.children.length, 0);
 
-    // 备份状态行
-    let backupStatusHtml;
-    let backupStatusClass = '';
+    let backupStatusHtml, backupStatusClass = '';
     if (lastBackupAt) {
       const ago = formatBackupAgo(lastBackupAt);
       const days = Math.floor((Date.now() - lastBackupAt) / (24 * 3600 * 1000));
@@ -170,17 +145,18 @@
           ${menuItem('🎯', '预算管理', '日/周/月预算', 'budgets')}
         </div>
 
-        <div class="list-section-title">数据备份</div>
+        <div class="list-section-title">数据备份（iCloud）</div>
         <div class="list-section">
           <div class="list-item backup-status-row ${backupStatusClass}">
             <div class="list-item-icon" style="background:var(--color-tint-light);color:var(--color-tint);font-size:18px">💾</div>
             <div class="list-item-main">
               <div class="list-item-title">${backupStatusHtml}</div>
-              <div class="list-item-subtitle">iOS 删除主屏幕 App 会清除所有数据，请定期备份</div>
+              <div class="list-item-subtitle">iOS 删除主屏幕 App 会清除数据，请定期备份到 iCloud 云盘</div>
             </div>
           </div>
-          ${menuItem('📤', '导出数据', '保存为 JSON 文件', 'export')}
-          ${menuItem('📥', '导入数据', '从 JSON 文件恢复', 'import')}
+          ${menuItem('☁️', '备份到 iCloud', '生成 JSON 文件并保存到云盘', 'export')}
+          ${menuItem('📥', '从 iCloud 恢复', '选择备份文件导入', 'import')}
+          ${menuItem('❓', '如何备份到 iCloud', '查看详细步骤', 'help')}
         </div>
 
         <div class="list-section-title">工具</div>
@@ -192,9 +168,7 @@
         <div class="list-section-title">关于</div>
         <div class="list-section">
           <div class="list-item">
-            <div class="list-item-main">
-              <div class="list-item-title">版本</div>
-            </div>
+            <div class="list-item-main"><div class="list-item-title">版本</div></div>
             <div class="list-item-value">${APP_VERSION}</div>
           </div>
           <div class="list-item">
@@ -239,12 +213,13 @@
       case 'budgets':    window.PageBudgets.open(); break;
       case 'export':     await exportData(); break;
       case 'import':     await importData(); break;
+      case 'help':       showBackupHelp(); break;
       case 'fetch-rate': await fetchRate(); break;
       case 'reset':      await resetDB(); break;
     }
   }
 
-  // ============ 导出 ============
+  // ============ 导出（v1.7：用 Web Share API） ============
   async function exportData() {
     try {
       const [accounts, categories, transactions, meta] = await Promise.all([
@@ -269,20 +244,47 @@
         meta
       };
       const json = JSON.stringify(data, null, 2);
+      const filename = `ledger-backup-${new Date().toISOString().slice(0, 10)}.json`;
       const blob = new Blob([json], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `ledger-backup-${new Date().toISOString().slice(0, 10)}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
 
-      // 记录本次备份时间
+      let shared = false;
+      try {
+        const file = new File([blob], filename, { type: 'application/json' });
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: '记账备份',
+            text: `记账 App 数据备份 · ${transactions.length} 条账单`
+          });
+          shared = true;
+        }
+      } catch (err) {
+        // 用户取消分享不算失败
+        if (err.name === 'AbortError') return;
+        console.warn('Share failed, fallback to download:', err);
+      }
+
+      if (!shared) {
+        // 降级：下载到默认位置
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
       await setLastBackupAt(Date.now());
 
-      // 刷新设置页显示
+      // 首次成功备份，弹帮助
+      const helpShown = await window.Repo.Meta.get('backupHelpShown');
+      if (!helpShown) {
+        await window.Repo.Meta.set('backupHelpShown', true);
+        setTimeout(() => showBackupHelp(), 500);
+      }
+
       if (pageEl && pageEl.classList.contains('active')) {
         render();
       }
@@ -291,7 +293,6 @@
     }
   }
 
-  // ============ 导入 ============
   async function importData() {
     if (!confirm('导入会清空当前所有数据并替换为文件中的数据。\n\n建议先导出当前数据备份。\n\n继续？')) return;
 
@@ -337,6 +338,48 @@
       }
     });
     input.click();
+  }
+
+  // ============ 备份帮助弹窗 ============
+  function showBackupHelp() {
+    const html = `
+      <div class="backup-help">
+        <div class="backup-help-section">
+          <div class="backup-help-section-title">📤 备份步骤</div>
+          <ol class="backup-help-steps">
+            <li>点<b>"备份到 iCloud"</b>按钮</li>
+            <li>iOS 弹出分享菜单，选 <b>"存储到文件"</b></li>
+            <li>选择 <b>"iCloud 云盘"</b> → 新建或选择"记账备份"文件夹</li>
+            <li>点<b>"存储"</b>，完成</li>
+          </ol>
+        </div>
+
+        <div class="backup-help-section">
+          <div class="backup-help-section-title">📥 恢复步骤（新手机 / 重装时）</div>
+          <ol class="backup-help-steps">
+            <li>新设备添加主屏幕 App 后打开</li>
+            <li>进入 <b>设置 → 从 iCloud 恢复</b></li>
+            <li>iOS 弹出文件选择器，<b>点左上角"浏览"</b></li>
+            <li>选 <b>"iCloud 云盘"</b> → 找到 JSON 备份文件</li>
+            <li>点击文件，等待导入完成</li>
+          </ol>
+        </div>
+
+        <div class="backup-help-tip">
+          💡 <b>小贴士</b>：备份文件名含日期，例如 <code>ledger-backup-2026-04-23.json</code>。每次备份都会覆盖同一天的文件，不同天的备份会并存。
+        </div>
+
+        <div class="backup-help-tip">
+          ⚠️ <b>注意</b>：如果你的设备不支持"分享到文件"，导出会降级为直接下载到"下载"文件夹，之后你可以手动移到 iCloud 云盘。
+        </div>
+      </div>
+    `;
+
+    window.UISheet.open({
+      title: 'iCloud 备份指南',
+      content: html,
+      height: 'full'
+    });
   }
 
   async function fetchRate() {
