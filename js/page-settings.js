@@ -9,6 +9,9 @@
 (function () {
   'use strict';
 
+  // 版本号：每次升级改这里 + service-worker.js 里的 CACHE_VERSION
+  const APP_VERSION = '1.5.0';
+
   const { formatMoney } = window.UIUtils;
 
   let pageEl = null;
@@ -39,14 +42,12 @@
   async function render() {
     if (!pageEl) return;
 
-    // 加载快速统计数据
     const [accounts, categories, txs] = await Promise.all([
       window.Repo.Accounts.getAll(true),
       window.Repo.Categories.getAll(true),
       window.Repo.Transactions.getAll()
     ]);
     const accountCount = accounts.reduce((s, a) => s + 1 + a.children.length, 0);
-    const totalAmount = txs.reduce((s, t) => s + (t.type === 'expense' ? t.amountCNY : 0), 0);
 
     pageEl.innerHTML = `
       <div class="settings-page">
@@ -79,7 +80,7 @@
             <div class="list-item-main">
               <div class="list-item-title">版本</div>
             </div>
-            <div class="list-item-value">1.0.0</div>
+            <div class="list-item-value">${APP_VERSION}</div>
           </div>
           <div class="list-item">
             <div class="list-item-main">
@@ -89,7 +90,7 @@
           </div>
         </div>
 
-        <div class="settings-footer">浅木绿调 · 模块 1-9 · ${new Date().getFullYear()}</div>
+        <div class="settings-footer">浅木绿调 · v${APP_VERSION} · ${new Date().getFullYear()}</div>
       </div>
     `;
 
@@ -99,12 +100,17 @@
   }
 
   function menuItem(icon, title, sub, action, danger = false) {
+    const iconBg = danger ? 'rgba(193,74,62,0.12)' : 'var(--color-tint-light)';
+    const iconColor = danger ? 'var(--color-expense)' : 'var(--color-tint)';
+    const titleStyle = danger ? 'color:var(--color-expense)' : '';
+    const subHtml = sub ? `<div class="list-item-subtitle">${sub}</div>` : '';
+
     return `
       <div class="list-item is-clickable" data-action="${action}">
-        <div class="list-item-icon" style="background:${danger ? 'rgba(193,74,62,0.12)' : 'var(--color-tint-light)'};color:${danger ? 'var(--color-expense)' : 'var(--color-tint)'};font-size:18px">${icon}</div>
+        <div class="list-item-icon" style="background:${iconBg};color:${iconColor};font-size:18px">${icon}</div>
         <div class="list-item-main">
-          <div class="list-item-title" style="${danger ? 'color:var(--color-expense)' : ''}">${title}</div>
-          ${sub ? `<div class="list-item-subtitle">${sub}</div>` : ''}
+          <div class="list-item-title" style="${titleStyle}">${title}</div>
+          ${subHtml}
         </div>
         <svg class="list-item-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
@@ -132,7 +138,6 @@
         window.Repo.Transactions.getAll(),
         window.Repo.Meta.getAll()
       ]);
-      // 拍平账户（去掉 children 字段，恢复原始记录）
       const flatAccounts = [];
       accounts.forEach(p => {
         const { children, ...rest } = p;
@@ -181,11 +186,9 @@
           throw new Error('文件格式错误，请使用本应用导出的备份文件');
         }
 
-        // 1. 清库
         await window.DB.deleteDatabase();
         await window.DB.init();
 
-        // 2. 写入：保留原 id（用 put）
         async function writeAll(storeName, items) {
           if (!items || items.length === 0) return;
           const { store, done } = window.DB.tx(storeName, 'readwrite');
@@ -199,7 +202,6 @@
         await writeAll('categories', data.categories);
         await writeAll('transactions', data.transactions);
 
-        // meta：转换格式
         if (data.meta) {
           const metaItems = Object.entries(data.meta).map(([key, value]) => ({ key, value, updatedAt: Date.now() }));
           await writeAll('meta', metaItems);
