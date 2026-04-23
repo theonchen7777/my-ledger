@@ -1,16 +1,19 @@
 /**
  * 设置页（模块九）
  *
- * 入口分组：
- *   - 数据：账户管理、分类管理、预算管理
- *   - 工具：导出 / 导入 / 重置数据库
- *   - 关于：版本号、源码地址、感谢
+ * v1.6 更新：
+ *   - 导出成功时记录 lastBackupAt
+ *   - 备份状态行：显示"最近备份：X 天前"
+ *   - 超过 7 天未备份时，顶部弹提醒条
  */
 (function () {
   'use strict';
 
-  // 版本号：每次升级改这里 + service-worker.js 里的 CACHE_VERSION
-  const APP_VERSION = '1.5.0';
+  // 每次升级改这里 + service-worker.js 里的 CACHE_VERSION
+  const APP_VERSION = '1.6.0';
+
+  // 超过多少天没备份就提醒
+  const BACKUP_REMIND_DAYS = 7;
 
   const { formatMoney } = window.UIUtils;
 
@@ -37,17 +40,118 @@
         render();
       }
     });
+
+    // 启动时检查备份提醒（延迟 2 秒，避免打断首次打开体验）
+    setTimeout(() => maybeShowBackupBanner(), 2000);
   }
 
+  // ============ 备份时间工具 ============
+  async function getLastBackupAt() {
+    return await window.Repo.Meta.get('lastBackupAt');
+  }
+
+  async function setLastBackupAt(ts) {
+    await window.Repo.Meta.set('lastBackupAt', ts);
+  }
+
+  function formatBackupAgo(ts) {
+    if (!ts) return null;
+    const diffMs = Date.now() - ts;
+    const days = Math.floor(diffMs / (24 * 3600 * 1000));
+    if (days === 0) {
+      const hours = Math.floor(diffMs / (3600 * 1000));
+      if (hours === 0) return '刚刚';
+      return `${hours} 小时前`;
+    }
+    if (days < 30) return `${days} 天前`;
+    const months = Math.floor(days / 30);
+    return `${months} 个月前`;
+  }
+
+  // ============ 备份提醒条（顶部） ============
+  async function maybeShowBackupBanner() {
+    const last = await getLastBackupAt();
+    const txs = await window.Repo.Transactions.getAll();
+
+    // 没有任何账单，不提醒
+    if (txs.length === 0) return;
+
+    // 有备份且还在 7 天内，不提醒
+    if (last && Date.now() - last < BACKUP_REMIND_DAYS * 24 * 3600 * 1000) return;
+
+    // 本次会话已关掉过提醒，不再弹
+    if (sessionStorage.getItem('backupBannerDismissed') === '1') return;
+
+    showBackupBanner(last);
+  }
+
+  function showBackupBanner(last) {
+    if (document.getElementById('backupBanner')) return;
+
+    const banner = document.createElement('div');
+    banner.id = 'backupBanner';
+    banner.className = 'backup-banner';
+
+    const msg = last
+      ? `已有 ${formatBackupAgo(last)} 未备份`
+      : '还未备份过数据';
+
+    banner.innerHTML = `
+      <div class="backup-banner-icon">⚠️</div>
+      <div class="backup-banner-text">${msg}</div>
+      <button class="backup-banner-btn" data-action="backup-now">立即备份</button>
+      <button class="backup-banner-close" data-action="dismiss" aria-label="关闭">×</button>
+    `;
+
+    document.body.appendChild(banner);
+    requestAnimationFrame(() => banner.classList.add('active'));
+
+    banner.querySelector('[data-action="backup-now"]').addEventListener('click', async () => {
+      await exportData();
+      hideBackupBanner();
+    });
+    banner.querySelector('[data-action="dismiss"]').addEventListener('click', () => {
+      sessionStorage.setItem('backupBannerDismissed', '1');
+      hideBackupBanner();
+    });
+  }
+
+  function hideBackupBanner() {
+    const banner = document.getElementById('backupBanner');
+    if (!banner) return;
+    banner.classList.remove('active');
+    setTimeout(() => banner.remove(), 250);
+  }
+
+  // ============ 主渲染 ============
   async function render() {
     if (!pageEl) return;
 
-    const [accounts, categories, txs] = await Promise.all([
+    const [accounts, categories, txs, lastBackupAt] = await Promise.all([
       window.Repo.Accounts.getAll(true),
       window.Repo.Categories.getAll(true),
-      window.Repo.Transactions.getAll()
+      window.Repo.Transactions.getAll(),
+      getLastBackupAt()
     ]);
     const accountCount = accounts.reduce((s, a) => s + 1 + a.children.length, 0);
+
+    // 备份状态行
+    let backupStatusHtml;
+    let backupStatusClass = '';
+    if (lastBackupAt) {
+      const ago = formatBackupAgo(lastBackupAt);
+      const days = Math.floor((Date.now() - lastBackupAt) / (24 * 3600 * 1000));
+      if (days >= BACKUP_REMIND_DAYS) {
+        backupStatusClass = 'backup-status-warn';
+        backupStatusHtml = `最近备份：${ago} <span class="backup-status-note">建议备份</span>`;
+      } else {
+        backupStatusClass = 'backup-status-ok';
+        backupStatusHtml = `最近备份：${ago}`;
+      }
+    } else {
+      backupStatusClass = 'backup-status-none';
+      backupStatusHtml = `从未备份 <span class="backup-status-note">建议立即备份</span>`;
+    }
 
     pageEl.innerHTML = `
       <div class="settings-page">
@@ -66,10 +170,21 @@
           ${menuItem('🎯', '预算管理', '日/周/月预算', 'budgets')}
         </div>
 
-        <div class="list-section-title">工具</div>
+        <div class="list-section-title">数据备份</div>
         <div class="list-section">
+          <div class="list-item backup-status-row ${backupStatusClass}">
+            <div class="list-item-icon" style="background:var(--color-tint-light);color:var(--color-tint);font-size:18px">💾</div>
+            <div class="list-item-main">
+              <div class="list-item-title">${backupStatusHtml}</div>
+              <div class="list-item-subtitle">iOS 删除主屏幕 App 会清除所有数据，请定期备份</div>
+            </div>
+          </div>
           ${menuItem('📤', '导出数据', '保存为 JSON 文件', 'export')}
           ${menuItem('📥', '导入数据', '从 JSON 文件恢复', 'import')}
+        </div>
+
+        <div class="list-section-title">工具</div>
+        <div class="list-section">
           ${menuItem('💱', '更新汇率', '手动拉取最新美元汇率', 'fetch-rate')}
           ${menuItem('🗑️', '重置数据库', '清除所有数据', 'reset', true)}
         </div>
@@ -163,6 +278,14 @@
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+
+      // 记录本次备份时间
+      await setLastBackupAt(Date.now());
+
+      // 刷新设置页显示
+      if (pageEl && pageEl.classList.contains('active')) {
+        render();
+      }
     } catch (err) {
       alert('导出失败：' + err.message);
     }
