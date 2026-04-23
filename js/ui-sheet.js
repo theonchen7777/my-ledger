@@ -102,7 +102,7 @@
           document.body.style.overflow = '';
         }
         if (onClose) onClose();
-      }, 280);
+      }, 220);
     }
 
     // ============ 事件绑定 ============
