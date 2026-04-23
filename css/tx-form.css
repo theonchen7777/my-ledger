@@ -1,0 +1,353 @@
+/* ============================================
+   模块四：账单录入表单 + FAB 悬浮按钮
+   ============================================ */
+
+/* ============================================
+   FAB 悬浮加号按钮（日历页右下角）
+   ============================================ */
+.cal-fab {
+  position: absolute;
+  right: calc(var(--spacing-md) + var(--safe-area-right));
+  bottom: calc(var(--spacing-md) + var(--safe-area-bottom));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--color-tint);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow:
+    0 4px 12px rgba(0, 122, 255, 0.4),
+    0 1px 3px rgba(0, 0, 0, 0.1);
+  z-index: 5;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.cal-fab:active {
+  transform: scale(0.92);
+  box-shadow:
+    0 2px 6px rgba(0, 122, 255, 0.4),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+.cal-fab svg {
+  width: 28px;
+  height: 28px;
+}
+
+/* ============================================
+   表单总体
+   ============================================ */
+.txform {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+}
+
+.txform-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.txform-label {
+  font-size: 13px;
+  color: var(--color-label-secondary);
+  font-weight: 500;
+  padding: 0 4px;
+}
+
+/* ============================================
+   类型分段控件（支出/收入）
+   ============================================ */
+.txform-segment {
+  display: flex;
+  background: rgba(120, 120, 128, 0.12);
+  border-radius: 10px;
+  padding: 3px;
+  gap: 3px;
+}
+
+.txform-seg-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-label-secondary);
+  background: transparent;
+  transition: all 0.2s ease;
+}
+
+.txform-seg-btn.active {
+  background: var(--color-bg-elevated);
+  color: var(--color-label);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  font-weight: 600;
+}
+
+.txform-seg-btn.active.expense {
+  color: var(--color-expense);
+}
+.txform-seg-btn.active.income {
+  color: var(--color-income);
+}
+
+/* ============================================
+   金额输入（带币种选择）
+   ============================================ */
+.txform-field-amount {
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: var(--spacing-md);
+  gap: 0;
+}
+
+.txform-amount-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  /* 让子元素可正确收缩，避免金额被推出屏幕 */
+  min-width: 0;
+}
+
+.txform-currency {
+  height: 44px;
+  padding: 0 8px;
+  background: rgba(120, 120, 128, 0.12);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-label);
+  -webkit-appearance: none;
+  appearance: none;
+  outline: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  min-width: 72px;
+  max-width: 90px;
+}
+
+.txform-amount-input {
+  flex: 1;
+  min-width: 0;               /* 关键：允许被压缩 */
+  width: 100%;
+  height: 44px;
+  background: transparent;
+  border: none;
+  font-size: 28px;             /* 原 32px 太大，小屏挤出 */
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.5px;
+  color: var(--color-label);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  padding: 0;
+  /* 防止内容溢出容器 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.txform-amount-input.expense { color: var(--color-expense); }
+.txform-amount-input.income { color: var(--color-income); }
+
+.txform-amount-input::placeholder {
+  color: var(--color-label-tertiary);
+  font-weight: 400;
+}
+
+/* 小屏（iPhone 竖屏）进一步压缩 */
+@media (max-width: 420px) {
+  .txform-amount-input {
+    font-size: 24px;
+    letter-spacing: -0.3px;
+  }
+  .txform-currency {
+    min-width: 64px;
+    font-size: 13px;
+    padding: 0 6px;
+  }
+}
+
+/* ============================================
+   汇率行（外币时显示）
+   ============================================ */
+.txform-rate-row {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 0.5px solid var(--color-separator);
+}
+
+.txform-rate-label {
+  font-size: 14px;
+  color: var(--color-label-secondary);
+  flex-shrink: 0;
+  font-weight: 500;
+}
+
+.txform-rate-cny {
+  width: 100px;
+  height: 32px;
+  padding: 0 8px;
+  background: rgba(120, 120, 128, 0.08);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  color: var(--color-label);
+  -webkit-appearance: none;
+}
+.txform-rate-cny:focus {
+  border-color: var(--color-tint);
+  background: var(--color-bg-elevated);
+}
+
+.txform-rate-status {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-label-tertiary);
+}
+
+.txform-rate-error {
+  flex: 1;
+  font-size: 12px;
+  color: var(--color-expense);
+}
+
+.txform-rate-refresh {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-tint);
+  background: rgba(0, 122, 255, 0.08);
+  flex-shrink: 0;
+}
+.txform-rate-refresh:active {
+  background: rgba(0, 122, 255, 0.18);
+}
+
+/* ============================================
+   通用 select 和 input（在表单里）
+   ============================================ */
+.txform-select,
+.txform-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  background: var(--color-bg-elevated);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  color: var(--color-label);
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  /* 自定义下拉箭头（仅 select 用） */
+  background-image: none;
+}
+
+.txform-select {
+  /* 自定义下拉箭头 */
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%238e8e93' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 18px;
+  padding-right: 40px;
+}
+
+/* iOS 上 datetime-local 的字号修正 */
+input[type="datetime-local"].txform-select {
+  font-variant-numeric: tabular-nums;
+  background-image: none;
+  padding-right: 14px;
+}
+
+.txform-input::placeholder {
+  color: var(--color-label-tertiary);
+}
+
+/* ============================================
+   日预算开关
+   ============================================ */
+.txform-toggle-row {
+  flex-direction: row !important;
+  align-items: center;
+  background: var(--color-bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 14px var(--spacing-md);
+  gap: var(--spacing-md);
+}
+
+.txform-toggle-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.txform-toggle-label {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-label);
+}
+
+.txform-toggle-hint {
+  font-size: 11px;
+  color: var(--color-label-tertiary);
+  line-height: 1.4;
+}
+
+/* iOS 风格开关 */
+.txform-switch {
+  position: relative;
+  display: inline-block;
+  width: 51px;
+  height: 31px;
+  flex-shrink: 0;
+}
+
+.txform-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.txform-switch-slider {
+  position: absolute;
+  inset: 0;
+  background-color: rgba(120, 120, 128, 0.2);
+  border-radius: 31px;
+  transition: background-color 0.2s;
+  cursor: pointer;
+}
+
+.txform-switch-slider::before {
+  content: '';
+  position: absolute;
+  height: 27px;
+  width: 27px;
+  left: 2px;
+  top: 2px;
+  background-color: white;
+  border-radius: 50%;
+  transition: transform 0.2s;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.txform-switch input:checked + .txform-switch-slider {
+  background-color: var(--color-income);
+}
+
+.txform-switch input:checked + .txform-switch-slider::before {
+  transform: translateX(20px);
+}
